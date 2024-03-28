@@ -13,22 +13,35 @@ function Booking() {
     function handleRadioChange(e, values, form) {
         form.handleChange(e);
 
-        var service = { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [] };
-        var details = { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [] };
+        var service = {};
+        var details = {};
         var newService = {};
-        const IVDrip = Services.filter(shot => shot.type === 'IV Drip Therapy')
 
         while (e.target.value > 0) {
-            if (e.target.value === '1') {
-                details[0].splice(0, 1, { name: '', email: '', contact: '', birthDate: new Date() })
+            if (e.target.value === '1' && (values.details[0]?.length === 0 || !values.details[e.target.value - 1] === undefined)) {
+                details[0] = [{ name: '', email: '', contact: '', birthDate: '' }]
+            } else if (values.details[e.target.value - 1]?.length === 0 || values.details[e.target.value - 1] === undefined) {
+                details[e.target.value - 1] = [{ name: '', birthDate: '' }]
             } else {
-                details[e.target.value - 1].splice(e.target.value - 1, 1, { name: '', birthDate: new Date() })
+                details[e.target.value - 1] = values.details[e.target.value - 1]
             }
-            service[e.target.value - 1].splice(e.target.value - 1, 1, { loc: false, name: '', type: '', price: '' })
-            newService[e.target.value - 1] = (IVDrip)
 
+            // console.log(values.services, "service")
+            if (values.services[e.target.value - 1]?.length === 0 || values.services[e.target.value - 1] === undefined) {
+                service[e.target.value - 1] = [{ loc: false, name: '', type: '', price: '' }]
+            } else {
+                service[e.target.value - 1] = values.services[e.target.value - 1]
+            }
+
+            if (!serviceLists[e.target.value - 1]) {
+                const shots = Services.filter(shot => shot.type === 'IV Drip Therapy')
+                newService[e.target.value - 1] = shots
+            } else {
+                newService[e.target.value - 1] = serviceLists[e.target.value - 1]
+            }
             e.target.value--;
         }
+        console.log(newService, "newwwww")
         setService(newService);
         form.setFieldValue('services', service)
         form.setFieldValue('details', details)
@@ -37,26 +50,42 @@ function Booking() {
     function handleShots(e) {
         const Lists = Services.filter(serv => serv.type === e.target.value)
         const AttNum = e.target.name.slice(-1);
-        serviceLists[AttNum] = Lists
+
+        var newServ = serviceLists;
+        newServ[AttNum] = Lists
+        setService(newServ)
     }
 
     function handleService(e, num, values, form) {
         const { value, checked } = e.target;
+
         var shotLists = values.services
         if (checked) {
             const matchServ = Services.filter(serv => serv.name === value)
-            shotLists[num].push(matchServ[0])
+            const finalServ = {
+                loc: false,
+                name: matchServ[0].name,
+                type: matchServ[0].type,
+                price: matchServ[0].price
+            }
+            if (!shotLists[num][0].name) {
+                shotLists[num].splice(0, 1, finalServ)
+            } else {
+                shotLists[num].push(finalServ)
+            }
         } else {
             const reply = shotLists[num].filter((item) => item.name !== value)
             shotLists[num] = reply;
         }
+
         var sum = 0, i = 0;
         while (i < 6) {
-            shotLists[i].map((serv) => sum += Number(serv.price))
+            shotLists[i]?.map((serv) => sum += Number(serv.price))
             setTotal(sum)
             i++;
         }
         form.setFieldValue('services', shotLists)
+        console.log(values.services[0], "shotListss")
     }
 
     function handleDetails(e, values, form, num) {
@@ -92,8 +121,7 @@ function Booking() {
         form.setFieldValue('services', values.services)
     }
 
-    // console.log(placeCheck, "outerrrr")
-
+    console.log(serviceLists, "ServiceLists")
     return (
         <>
             <Formik
@@ -108,9 +136,26 @@ function Booking() {
                         setSubmitting(false);
                     }, 400);
                 }}
+                validateOnBlur={false}
+                validateOnChange={false}
+                validate={(values) => {
+                    if (!values.attendees) {
+                        alert('Attendees Required');
+                    } else if (!values.HomeClinic) {
+                        alert('Home or Clinic Choice Required')
+                    } else if (!values.userDate) {
+                        alert('Appointment Date Required')
+                    } else if (!values.timings) {
+                        alert('Time Slot Required')
+                    } else if (!values.services[0].name) {
+                        alert('Service Required')
+                    } else if (!values.details[0].name) {
+                        alert('Details Required')
+                    }
+                }}
             >
                 {
-                    ({ values, touched, handleChange, handleSubmit, handleBlur, isSubmitting, setFieldValue }) => (
+                    ({ values, handleChange, handleSubmit, handleBlur, isSubmitting, setFieldValue }) => (
                         <form onSubmit={handleSubmit}>
                             <h2>1. Number of Atendees</h2>
                             <input type='radio' name='attendees' value="1" onChange={e => handleRadioChange(e, values, { handleChange, setFieldValue })} onBlur={handleBlur} />
@@ -145,20 +190,19 @@ function Booking() {
                                 <h2>4. Select your services </h2>}
 
                             {elements.map(num => (
-                                values.services[num].length > 0 &&
+                                values.services[num]?.length > 0 &&
                                 <>
                                     <h3>Attendee {num + 1} </h3>
                                     <input type='checkbox' onChange={e => handleHomeClinic(e, num, values, { setFieldValue })} checked={values.services[num].loc} name='homeClinic' value={num} />
                                     <label>Decide {values?.HomeClinic ? values?.HomeClinic : "In Clinic"}</label> <br />
 
-                                    <input type='radio' name={`Shots${num}`} value='IV Drip Therapy' onChange={e => handleShots(e)} onBlur={handleBlur} />
+                                    <input type='radio' name={`Shots${num}`} value='IV Drip Therapy' onChange={e => { handleChange(e); handleShots(e) }} onBlur={handleBlur} checked={serviceLists[num][0]?.type === 'IV Drip Therapy'} />
                                     <label>IV Drip Therapy</label>
-                                    <input type='radio' name={`Shots${num}`} value='Vitamin Shots' onChange={e => handleShots(e)} onBlur={handleBlur} />
+                                    <input type='radio' name={`Shots${num}`} value='Vitamin Shots' onChange={e => { handleChange(e); handleShots(e) }} onBlur={handleBlur} checked={serviceLists[num][0]?.type === 'Vitamin Shots'} />
                                     <label>Vitamin Shots</label>
-
                                     {serviceLists[num]?.map((shot) => (
                                         <>
-                                            <input type='checkbox' checked={values.services[num]?.name?.includes(shot?.name)} onChange={e => handleService(e, num, values, { setFieldValue })} value={shot.name} />
+                                            <input type='checkbox' checked={values.services[num].find((val) => val.name.includes(shot.name))} onChange={e => { handleChange(e); handleService(e, num, values, { setFieldValue }) }} value={shot.name} name={`Products${num}`} />
                                             <label>{shot.name}</label>
                                         </>
                                     ))}
@@ -166,21 +210,21 @@ function Booking() {
                             ))
                             }
 
-                            {values.details[0].length > 0 &&
+                            {values.details[0]?.length > 0 &&
                                 <h2>Enter your contact details</h2>}
 
                             {elements.map(num => (
-                                values.details[num].length > 0 &&
+                                values.details[num]?.length > 0 &&
                                 <>
                                     <h3>Attendee {num + 1}</h3>
                                     <label>NAME</label>
-                                    <input type='text' name='name' value={values.details[num].name} onChange={e => handleDetails(e, values, { setFieldValue }, num)} onBlur={handleBlur} /> <br />
+                                    <input type='text' name='name' value={values.details[num].name} onChange={e => { handleDetails(e, values, { setFieldValue }, num) }} onBlur={handleBlur} /> <br />
                                     {num === 0 &&
                                         <>
                                             <label>EMAIL</label>
-                                            <input type='text' name='email' value={values.details[num].email} onChange={e => handleDetails(e, values, { setFieldValue }, num)} onBlur={handleBlur} /> <br />
+                                            <input type='text' name='email' value={values.details[num].email} onChange={e => { handleChange(e); handleDetails(e, values, { setFieldValue }, num) }} onBlur={handleBlur} /> <br />
                                             <label>CONTACT NO.</label>
-                                            <input type='text' name='contact' value={values.details[num].contact} onChange={e => handleDetails(e, values, { setFieldValue }, num)} onBlur={handleBlur} /> <br />
+                                            <input type='text' name='contact' value={values.details[num].contact} onChange={e => { handleChange(e); handleDetails(e, values, { setFieldValue }, num) }} onBlur={handleBlur} /> <br />
                                         </>
                                     }
                                     <label>DATE OF BIRTH</label>
@@ -190,10 +234,10 @@ function Booking() {
 
                             <h2>YOUR BOOKING</h2>
                             {elements.map(num => (
-                                values.services[num].length > 0 &&
+                                values.services[num]?.length > 0 &&
                                 <>
                                     <h3>Attendee {num + 1} </h3>
-                                    {values.services[num].map((serve) => (
+                                    {values.services[num]?.map((serve) => (
                                         <>
                                             <div className='billing'>
                                                 <div>{serve.name}</div>
@@ -207,10 +251,10 @@ function Booking() {
                                 <div>GRAND TOTAL</div>
                                 <div>{total}</div>
                             </div>
+                            <button type='submit' disabled={isSubmitting}>{isSubmitting ? 'Submitting..' : 'Submit'}</button>
                         </form>
                     )
                 }
-
             </Formik >
         </>
     )
