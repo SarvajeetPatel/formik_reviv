@@ -59,8 +59,8 @@ function Booking() {
 
     function handleService(e, num, values, form) {
         const { value, checked } = e.target;
-
         var shotLists = values.services
+        console.log(shotLists, "checkeddd")
         if (checked) {
             const matchServ = Services.filter(serv => serv.name === value)
             const finalServ = {
@@ -75,7 +75,11 @@ function Booking() {
                 shotLists[num].push(finalServ)
             }
         } else {
-            const reply = shotLists[num].filter((item) => item.name !== value)
+            var reply = shotLists[num].filter((item) => item.name !== value)
+            console.log(reply)
+            if (reply.length === 0) {
+                reply = [{ loc: false, name: '', type: '', price: '' }]
+            }
             shotLists[num] = reply;
         }
 
@@ -92,11 +96,11 @@ function Booking() {
     function handleDetails(e, values, form, num) {
         const { name, value } = e.target;
         if (name === 'name') {
-            values.details[num].name = value;
+            values.details[num][0].name = value;
         } else if (name === 'email') {
-            values.details[num].email = value;
+            values.details[num][0].email = value;
         } else {
-            values.details[num].contact = value;
+            values.details[num][0].contact = value;
         }
         form.setFieldValue('details', values.details)
     }
@@ -107,64 +111,81 @@ function Booking() {
     }
 
     function handleHomeClinic(e, num, values, form) {
-        var def = serviceLists, i = 0;
+        var def = serviceLists;
         if (e.target.checked) {
             values.services[num][0].loc = true
             def[num] = [];
         } else {
             def[num] = Services.filter(shot => shot.type === 'IV Drip Therapy')
-            while (i < def[num].length) {
-                values.services[num][i].loc = false
-                i++;
-            }
+            values.services[num][0].loc = false
         }
         setService(def);
         form.setFieldValue('services', values.services)
     }
 
     const yupValidate = Yup.object().shape({
-        // attendees: Yup.string().required('Please select attendee(s)!'),
-        // HomeClinic: Yup.string().required('Please choose treatment area!'),
-        // userDate: Yup.string().min(new Date().getDate() + 1, 'Cannot book for today! Selected Date must be of tomorrow or higher date!'),
-        // timings: Yup.string().required('Please select a TimeSlot!'),
-        services: Yup.object().shape(
-            elements.map((num) => {
-                num: Yup.array().of(
-                    Yup.object().shape({
-                        // name: Yup.string().when('loc', { is: 'false', then: Yup.string().required('Serive Req') }),
-                        loc: Yup.boolean().required('Select'),
-                        name: Yup.string().required('Select name'),
-                        type: Yup.string().required('Select'),
-                        price: Yup.string().required('Select')
-                    })
-                )
-
-            })
-        ),
-        // details: Yup.object().shape({
-        //     myArray: Yup.array().of(
+        // services: Yup.object().shape({
+        //     0: Yup.array().of(
         //         Yup.object().shape({
-        //             name: Yup.string().required('name is required')
-        //         })
-        //     )
+        //             name: Yup.string().required('Select name'),
+        //             name: Yup.string().when('loc', { is: 'false', then: Yup.string().required('Serive Req') }),
+        //         }))
         // })
+
+        attendees: Yup.string().required('Please select attendee(s)!'),
+        HomeClinic: Yup.string().required('Please choose treatment area!'),
+        userDate: Yup.string().min(new Date().getDate() + 1, 'Cannot book for today! Selected Date must be of tomorrow or higher date!'),
+        timings: Yup.string().required('Please select a TimeSlot!'),
+        services: Yup.object().shape({
+            ...(() => {
+                const testing = {}
+                elements.map((ele) => {
+                    Object.assign(testing, {
+                        [ele]: Yup.array().of(
+                            Yup.object().shape({
+                                name: Yup.string().test('name test', 'Select at least one serviced for now! Or else decide at venue!', function (value, ctx) {
+                                    if (ctx.from[0].value?.loc) return true
+                                    else return ctx.from[0].value.loc
+                                })
+                            }))
+                    }
+                    )
+                }
+                )
+                return testing
+            })()
+        }
+        ),
+        details: Yup.object().shape({
+            ...(() => {
+                const testing = {}
+                elements.map((ele) => {
+                    Object.assign(testing, {
+                        [ele]: Yup.array().of(
+                            Yup.object().shape({
+                                name: Yup.string().required('Enter Name!'),
+                                birthDate: Yup.string().required('Please Select Date of Birth!'),
+                                email: Yup.string().email('Enter valid Email').test('email test', 'Enter email ID', function (value, ctx) {
+                                    if (ctx.from[0].value?.hasOwnProperty('email')) return value?.length > 0
+                                    else return true
+                                }),
+                                contact: Yup.string().test('contact test', 'Enter contact number', function (value, ctx) {
+                                    if (ctx.from[0].value?.hasOwnProperty('contact')) return value?.length > 0
+                                    else return true
+                                })
+                            }))
+                    }
+                    )
+                }
+                )
+                return testing
+            })()
+        }
+        ),
     })
 
-    // const yupValidate = Yup.object().shape({
-    //     services: Yup.object().shape(
-    //         Yup.array().of(
-    //             Yup.object().shape({
-    //                 name: Yup.string().required('Seletc name')
-    //             })
-    //         )
-    //     )
-    // })
-
-    function handleClick(errors) {
-        console.log(errors, "erroer")
-        // errors.details?.[0]?.map((serv) => {
-        //     console.log(serv.name, "service");
-        // })
+    function handleClick(errors){
+        console.log(errors)
     }
 
     return (
@@ -217,14 +238,14 @@ function Booking() {
                                 <label>5</label>
                                 <input type='radio' name='attendees' value="6" onChange={e => handleRadioChange(e, values, { handleChange, setFieldValue })} onBlur={handleBlur} />
                                 <label>6</label><br />
-                                {/* <div className='validate'>{errors.attendees}</div> */}
+                                <div className='validate'>{errors?.attendees}</div>
 
                                 <h2>2. In-clinic or at home</h2>
                                 <input type='radio' name='HomeClinic' value="In-Clinic" onChange={handleChange} onBlur={handleBlur} />
                                 <label>In-Clinic</label>
                                 <input type='radio' name='HomeClinic' value="At Home" onChange={handleChange} onBlur={handleBlur} />
                                 <label>At Home</label><br />
-                                {/* <div className='validate'>{errors.HomeClinic}</div> */}
+                                <div className='validate'>{errors?.HomeClinic}</div>
 
                                 <h2>3. Date and Time</h2>
                                 <DatePicker name='userDate' selected={values.userDate} onChange={date => setFieldValue('userDate', date)} minDate={new Date()} />
@@ -234,8 +255,8 @@ function Booking() {
                                     ))}
                                 </select>
                                 <br />
-                                {/* <div className='validate'>{errors.userDate}</div>
-                                <div className='validate'>{errors.timings}</div> */}
+                                <div className='validate'>{errors?.userDate}</div>
+                                <div className='validate'>{errors?.timings}</div>
 
                                 {values.services[0].length > 0 &&
                                     <h2>4. Select your services </h2>}
@@ -257,7 +278,7 @@ function Booking() {
                                                 <label>{shot.name}</label>
                                             </>
                                         ))}
-                                        {/* <div className='validate'> {errors?.services} </div> */}
+                                        <div className='validate'> {errors?.services?.[num]?.map((msg) => <>{msg?.name}</>)} </div>
                                     </>
                                 ))
                                 }
@@ -270,18 +291,21 @@ function Booking() {
                                     <>
                                         <h3>Attendee {num + 1}</h3>
                                         <label>NAME</label>
-                                        <input type='text' name='name' value={values.details[num].name} onChange={e => handleDetails(e, values, { setFieldValue }, num)} onBlur={handleBlur} /> <br />
+                                        <input type='text' name='name' value={values.details[num][0].name} onChange={e => handleDetails(e, values, { setFieldValue }, num)} onBlur={handleBlur} /> <br />
+                                        <div className='validate'> {errors?.details?.[num]?.[0]?.name} </div>
                                         {num === 0 &&
                                             <>
                                                 <label>EMAIL</label>
-                                                <input type='text' name='email' value={values.details[num].email} onChange={e => handleDetails(e, values, { setFieldValue }, num)} onBlur={handleBlur} /> <br />
+                                                <input type='text' name='email' value={values.details[num][0].email} onChange={e => handleDetails(e, values, { setFieldValue }, num)} onBlur={handleBlur} /> <br />
+                                                <div className='validate'> {errors?.details?.[num]?.[0]?.email} </div>
                                                 <label>CONTACT NO.</label>
-                                                <input type='text' name='contact' value={values.details[num].contact} onChange={e => handleDetails(e, values, { setFieldValue }, num)} onBlur={handleBlur} /> <br />
+                                                <input type='text' name='contact' value={values.details[num][0].contact} onChange={e => handleDetails(e, values, { setFieldValue }, num)} onBlur={handleBlur} /> <br />
+                                                <div className='validate'> {errors?.details?.[num]?.[0]?.contact} </div>
                                             </>
                                         }
                                         <label>DATE OF BIRTH</label>
-                                        <DatePicker name='birthDate' selected={values.details[num].birthDate} onChange={date => handleBirthDate(date, values, { setFieldValue }, num)} />
-                                        {/* <div className='validate'> {errors?.details} </div> */}
+                                        <DatePicker name='birthDate' selected={values.details[num][0].birthDate} onChange={date => handleBirthDate(date, values, { setFieldValue }, num)} />
+                                        <div className='validate'> {errors?.details?.[num]?.[0]?.birthDate} </div>
                                     </>
                                 ))}
 
@@ -308,7 +332,7 @@ function Booking() {
                                         </div> <br />
                                     </>
                                 }
-                                <button type='submit' disabled={isSubmitting} onClick={handleClick(errors)}>{isSubmitting ? 'Submitting..' : 'Submit'}</button>
+                                <button type='submit' onClick={handleClick(errors)} disabled={isSubmitting}>{isSubmitting ? 'Submitting..' : 'Submit'}</button>
                             </form>
                         )
                     }
