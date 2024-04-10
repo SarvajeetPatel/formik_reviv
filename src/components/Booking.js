@@ -170,6 +170,7 @@ function Booking() {
                                     else return true
                                 }),
                                 contact: Yup.string().test('contact test', 'Enter contact number', function (value, ctx) {
+                                    console.log(value?.length > 0 , "val", ctx)
                                     if (ctx.from[0].value?.hasOwnProperty('contact')) return value?.length > 0
                                     else return true
                                 })
